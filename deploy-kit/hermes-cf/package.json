@@ -1,0 +1,21 @@
+{
+  "name": "hermes-cf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hermes Agent (NousResearch) on Cloudflare Workers + Containers, with R2 persistence via TigrisFS.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "^0.0.30"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.50.0"
+  }
+}

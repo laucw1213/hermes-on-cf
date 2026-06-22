@@ -1,0 +1,59 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hermes-cf",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // ── Keepalive heartbeat ────────────────────────────────────────────
+  // Hermes talks to Telegram via OUTBOUND long-poll and has ZERO inbound
+  // HTTP — so nothing naturally keeps the container warm (unlike OpenClaw,
+  // whose browser dashboard traffic does). When the container sleeps, the
+  // long-poll stops and inbound Telegram messages are missed until something
+  // wakes it. This cron fires the always-on Worker every minute; its
+  // scheduled() handler does a lightweight containerFetch, which the
+  // @cloudflare/containers lib treats as activity → renews the sleepAfter
+  // timer AND cold-starts the container if it had gone down. 1 minute is the
+  // CF cron minimum; paired with sleepAfter="5m" it tolerates a missed tick.
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+
+  // The Hermes container. Built from ./Dockerfile (which extends the
+  // official nousresearch/hermes-agent image with rclone for R2 backup).
+  //
+  // instance_type "standard-3" = 2 vCPU / 4 GB RAM / 8 GB disk — Hermes
+  // needs the RAM to run Playwright/Chromium + multiple MCP subprocesses.
+  //
+  // sleepAfter is set on the Container subclass (src/index.ts) to "5m" — a
+  // forgiving idle window that the 1-minute cron keeps renewing.
+  "containers": [
+    {
+      "class_name": "HermesContainer",
+      "image": "./Dockerfile",
+      "instance_type": "standard-3",
+      "max_instances": 1
+    }
+  ],
+
+  // Container must be backed by a Durable Object class.
+  "durable_objects": {
+    "bindings": [
+      { "class_name": "HermesContainer", "name": "HERMES" }
+    ]
+  },
+  "migrations": [
+    { "new_sqlite_classes": ["HermesContainer"], "tag": "v1" }
+  ]
+
+  // Secrets set via `wrangler secret put` at deploy time, see the
+  // deploy-hermes skill:
+  //   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY    — R2 token (for rclone)
+  //   CF_ACCOUNT_ID                             — Cloudflare account id
+  //   R2_BUCKET_NAME                            — R2 bucket name
+  //   OPENAI_API_BASE_URL                       — AI Gateway compat URL
+  //   OPENAI_API_KEY                            — AIG token
+  //   HERMES_MODEL                              — e.g. @cf/google/gemma-4-26b-a4b-it
+  //   TELEGRAM_BOT_TOKEN                        — from BotFather
+}

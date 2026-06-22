@@ -1,0 +1,79 @@
+# Hermes-on-CF config template.
+#
+# Baked into the container image (Dockerfile COPYs this to
+# /opt/hermes/cli-config.yaml.example, overriding the upstream default
+# that points at OpenRouter + claude-opus-4.6).
+#
+# start.sh runs `envsubst` against this file at boot to substitute the
+# ${VAR} placeholders below from container env vars (forwarded from
+# wrangler secrets), then writes the rendered file to /opt/data/config.yaml.
+# Hermes' official entrypoint sees the destination already exists and
+# skips its own `cp` step, so this is what the agent actually reads.
+#
+# Everything not set here falls back to Hermes' built-in defaults (see
+# the full upstream cli-config.yaml.example for the menu of knobs).
+
+# ── Model ────────────────────────────────────────────────────────────
+# Substituted at container boot from wrangler secrets:
+#   HERMES_MODEL          → the Workers AI model id (e.g. @cf/google/gemma-4-26b-a4b-it)
+#   OPENAI_API_BASE_URL   → provider base_url (AIG workers-ai compat path)
+#   OPENAI_API_KEY        → provider api_key (the AIG auth token)
+#
+# CRITICAL — two independent fields, learned the hard way (2026-06-05):
+#
+#   • `model.provider` selects the BASE_URL. It must name the custom provider
+#     (`cf-workers-ai`) so inference routes to the AIG workers-ai endpoint.
+#     OMITTING it makes Hermes fall back to its built-in default provider
+#     (openrouter) → requests hit https://openrouter.ai with no key → 401
+#     "Missing Authentication header".
+#
+#   • `model.default` is sent to the API *VERBATIM* as the model string — it
+#     is NOT split on `/`, and the `model.provider` prefix is NOT stripped.
+#     So it must be the BARE Workers AI model id (`@cf/google/...`) with NO
+#     `cf-workers-ai/` prefix. With the prefix, AIG receives
+#     `cf-workers-ai/@cf/google/...` → 400 AiError 5007 "No such model".
+#
+# Verified directly against the AIG workers-ai compat endpoint:
+#   model="@cf/google/gemma-4-26b-a4b-it"               → 200 OK
+#   model="cf-workers-ai/@cf/google/gemma-4-26b-a4b-it" → 400 "No such model"
+#
+# Single-quoted so that after envsubst the leading `@` (a reserved YAML
+# indicator char) stays inside a quoted scalar and the file still parses.
+model:
+  default: '${HERMES_MODEL}'
+  provider: cf-workers-ai
+
+# The `providers:` block registers `cf-workers-ai` — `model.provider` above
+# resolves to it for the base_url + api_key, and it doubles as the in-chat
+# `/model` switcher catalog. `models:` must be a MAPPING (id -> {}) or a list
+# of plain string ids; a list of `{id, name}` dicts is silently dropped
+# (config.py only keeps str items), leaving the picker empty.
+providers:
+  cf-workers-ai:
+    base_url: ${OPENAI_API_BASE_URL}
+    api_key: ${OPENAI_API_KEY}
+    api_mode: chat_completions
+    default_model: '${HERMES_MODEL}'
+    models:
+      '@cf/google/gemma-4-26b-a4b-it': {}
+      '@cf/moonshotai/kimi-k2.6': {}
+      '@cf/nvidia/nemotron-3-120b-a12b': {}
+      '@cf/zai-org/glm-4.7-flash': {}
+fallback_providers: []
+
+# ── Toolset filter ──────────────────────────────────────────────────
+# Replace the default `hermes-telegram` preset (which includes browser,
+# vision, image_gen, tts, cronjob — none of which we can use without
+# extra API keys) with an explicit minimal set.
+#
+# Saves ~4K tokens per inference (was ~10K in tool schemas, now ~6K)
+# and trims the system-prompt skill catalog accordingly. The `browser`
+# toolset alone contributes 10 individual tools.
+platform_toolsets:
+  telegram:
+    - web           # web_search, web_extract
+    - terminal      # terminal, process
+    - file          # read_file, write_file, patch, search_files
+    - skills        # skills_list, skill_view
+    - todo          # in-memory task planning
+    - send_message  # Telegram outbound (required for any reply)
