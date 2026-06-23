@@ -45,7 +45,7 @@ the kit, install the worker's deps once, seed your `.env`, and pick a `NAME`
 for this bot:
 
 ```bash
-git clone --branch v1.0 https://github.com/laucw1213/hermes-on-cf.git
+git clone --branch v1.0 https://github.com/ZorCorp/hermes-on-cf.git
 cd hermes-on-cf/deploy-kit
 (cd hermes-cf && npm install --no-audit --no-fund)   # one-time, ~30s–2min
 cp env.template .env && chmod 600 .env

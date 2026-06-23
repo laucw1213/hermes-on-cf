@@ -19,7 +19,7 @@ is the single source of truth and works either way:
 In short:
 
 ```bash
-git clone --branch v1.0 https://github.com/laucw1213/hermes-on-cf.git
+git clone --branch v1.0 https://github.com/ZorCorp/hermes-on-cf.git
 cd hermes-on-cf/deploy-kit
 (cd hermes-cf && npm install --no-audit --no-fund)
 # then follow SKILL.md from Step 0
