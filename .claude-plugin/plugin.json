@@ -1,0 +1,9 @@
+{
+  "name": "hermes-on-cf",
+  "description": "Deploy your own Hermes Agent — a stateful AI agent reachable from your own Telegram bot — to your own Cloudflare account (Worker + Container + R2 + AI Gateway). Self-service: clone the kit, set your Cloudflare + Telegram tokens in .env, run the deploy scripts.",
+  "version": "1.0.0",
+  "author": {
+    "name": "ZorCorp",
+    "url": "https://github.com/ZorCorp"
+  }
+}
