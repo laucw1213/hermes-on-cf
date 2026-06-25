@@ -34,9 +34,10 @@ cf_api() { # METHOD path [data]
 }
 
 cmd_set_token() {
-  [ -n "${1:-}" ] || die "usage: cf-liveview set-token <token>"
+  local tok; tok="$(printf '%s' "${1:-}" | tr -d '[:space:]')"
+  [ -n "$tok" ] || die "usage: cf-liveview set-token <token>"
   mkdir -p "$CFLV_DIR"; chmod 700 "$CFLV_DIR"
-  printf '%s' "$1" > "$TOKEN_FILE"; chmod 600 "$TOKEN_FILE"
+  printf '%s' "$tok" > "$TOKEN_FILE"; chmod 600 "$TOKEN_FILE"
   echo "token saved to $TOKEN_FILE"
 }
 
@@ -46,7 +47,10 @@ cmd_start() {
 import os, json
 d = json.loads(os.environ["CFLV_RESP"])
 d = d.get("result", d)
-sid = d.get("webSocketDebuggerUrl", "").rstrip("/").split("/")[-1]
+ws = d.get("webSocketDebuggerUrl") or ""
+if not ws:
+    raise SystemExit("ERROR: no webSocketDebuggerUrl in CF response")
+sid = ws.rstrip("/").split("/")[-1]
 url = d["targets"][0]["devtoolsFrontendUrl"]
 tab = url.replace("/ui/view?", "/ui/view?mode=tab&", 1)
 print("sid=" + sid)
@@ -73,7 +77,7 @@ cmd_wait() {
   local sid="${1:-}" pat="${2:-}" timeout="${3:-120}" elapsed=0 url
   [ -n "$sid" ] && [ -n "$pat" ] || die "usage: cf-liveview wait <sid> <urlPattern> [timeoutSecs]"
   while [ "$elapsed" -lt "$timeout" ]; do
-    url="$(cmd_check "$sid" | sed -n 's/^url=//p')"
+    url="$(cmd_check "$sid" 2>/dev/null | sed -n 's/^url=//p' || true)"
     if printf '%s' "$url" | grep -qE -- "$pat"; then
       echo "matched=true url=$url"; return 0
     fi

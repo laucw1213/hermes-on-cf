@@ -32,7 +32,7 @@ When the user pastes the token, store it:
 bash <skill-dir>/cf-liveview.sh set-token "<the token>"
 ```
 
-Stored at `~/.config/cf-liveview/token` (R2-backed), so this is needed only once.
+Stored at `~/.config/cf-liveview/token` (persisted across restarts if `~/.config` is in your R2 sync set), so this is normally needed only once.
 
 ## The flow
 
@@ -60,6 +60,7 @@ bash <skill-dir>/cf-liveview.sh start
      bash <skill-dir>/cf-liveview.sh wait <sid> '/dashboard' 120
      # → matched=true url=...   (or matched=false on timeout)
      ```
+     (timeout is rounded up to the 3-second poll interval.)
 
 4. Use the result (e.g. confirm the URL reached) and continue the task.
 
